@@ -3,8 +3,8 @@ import random
 import string
 import json
 import time
-import colorama
-from colorama import Fore, Style
+import colorama # type: ignore
+from colorama import Fore, Style # type: ignore
 import zlib
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -15,6 +15,7 @@ from tkinter import filedialog
 from datetime import datetime, timedelta
 import subprocess
 import signal
+import PySimpleGUI as sg # type: ignore
 
 # Khởi tạo các biến global
 colorama.init(autoreset=True)
