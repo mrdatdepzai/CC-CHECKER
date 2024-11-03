@@ -22,7 +22,7 @@ Brief description of the project's function
 
 6. Follow the interactive prompts:
    - Enter the path to your cards file
-   - Choose number of threads (recommended: 50-100)
+   - Choose number of threads (recommended: 1-15)
    - Wait for the checking process to begin
 
 7. Monitor the real-time statistics display:
