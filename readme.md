@@ -1,6 +1,7 @@
 # CC CHECKER
 
-![Uploading image.png…]()
+![image](https://github.com/user-attachments/assets/0c5b7d08-b7c8-46cb-b95d-d7c28f695a55)
+
 
 
 ## 🚀 Usage Guide
